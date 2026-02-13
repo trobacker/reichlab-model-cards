@@ -8,7 +8,7 @@ import pandas as pd
 from pathlib import Path
 
 
-def parse_wis_report(html_path):
+def parse_wis_report(html_path, evaluation_period='last_4'):
     """
     Parse WIS evaluation report HTML to extract model metrics.
 
@@ -16,11 +16,18 @@ def parse_wis_report(html_path):
     ----------
     html_path : str or Path
         Path to the HTML report file
+    evaluation_period : str, optional
+        Which evaluation period to extract:
+        - 'last_2': Last 2 Forecasts (most recent, but least stable)
+        - 'last_4': Last 4 Forecasts (balanced)
+        - 'last_8': Last 8 Forecasts (longer-term performance)
+        - 'season': Full Season (recommended, complete season evaluation)
+        Default: 'last_4'
 
     Returns
     -------
-    pd.DataFrame
-        DataFrame with model names as index and metrics as columns
+    tuple
+        (DataFrame with metrics, evaluation_period_description)
     """
 
     with open(html_path, 'r', encoding='utf-8') as f:
@@ -32,8 +39,34 @@ def parse_wis_report(html_path):
     if len(json_data_tags) == 0:
         raise ValueError(f"No JSON data found in {html_path}")
 
-    # Parse first JSON tag (contains main summary table)
-    data = json.loads(json_data_tags[0].string)
+    # Map evaluation period to table index
+    table_map = {
+        'last_2': 0,   # Last 2 Forecasts (EW4-EW5)
+        'last_4': 2,   # Last 4 Forecasts (EW2-EW5)
+        'last_8': 4,   # Last 8 Forecasts (EW51-EW5)
+        'season': 9    # Full Season (EW47-EW5)
+    }
+
+    if evaluation_period not in table_map:
+        raise ValueError(f"Invalid evaluation_period: {evaluation_period}. "
+                        f"Must be one of: {list(table_map.keys())}")
+
+    table_idx = table_map[evaluation_period]
+
+    if table_idx >= len(json_data_tags):
+        raise ValueError(f"Table for {evaluation_period} not found in report")
+
+    # Parse the selected JSON tag
+    data = json.loads(json_data_tags[table_idx].string)
+
+    # Find the section header for this table
+    current = json_data_tags[table_idx]
+    period_description = "Unknown Period"
+    for _ in range(20):
+        current = current.find_previous('h2')
+        if current:
+            period_description = current.get_text().strip()
+            break
 
     # Extract column names from HTML container
     container_html = data['x']['container']
@@ -72,7 +105,7 @@ def parse_wis_report(html_path):
     n_locations = rows[10]
     pct_locations = rows[11]
 
-    # Create DataFrame
+    # Create DataFrame (including relative_wis for spider plots)
     df = pd.DataFrame({
         'model': model_names,
         'rank': ranks,
@@ -94,40 +127,37 @@ def parse_wis_report(html_path):
     # Convert rank to int
     df['rank'] = df['rank'].astype(int)
 
-    return df
+    return df, period_description
 
 
-def parse_all_wis_horizons(reports_dir):
+def parse_all_evaluation_periods(html_path):
     """
-    Parse WIS reports for different horizons if available.
+    Parse all evaluation periods from a WIS report.
 
     Parameters
     ----------
-    reports_dir : str or Path
-        Directory containing HTML reports
+    html_path : str or Path
+        Path to the HTML report file
 
     Returns
     -------
     dict
-        Dictionary mapping horizon to DataFrame
+        Dictionary mapping evaluation period to (DataFrame, description)
     """
-
-    reports_dir = Path(reports_dir)
-
-    # Look for WIS reports
-    wis_reports = list(reports_dir.glob("*WIS*.html"))
 
     results = {}
 
-    for report_path in wis_reports:
+    for period in ['last_2', 'last_4', 'last_8']:
         try:
-            df = parse_wis_report(report_path)
-            # Try to infer horizon from filename
-            # For now, use "overall" as key
-            results['overall'] = df
-            print(f"✓ Parsed {report_path.name}")
+            df, description = parse_wis_report(html_path, evaluation_period=period)
+            results[period] = {
+                'dataframe': df,
+                'description': description,
+                'total_models': len(df)
+            }
+            print(f"✓ Parsed {description}: {len(df)} models")
         except Exception as e:
-            print(f"✗ Failed to parse {report_path.name}: {e}")
+            print(f"✗ Failed to parse {period}: {e}")
 
     return results
 
@@ -136,23 +166,19 @@ if __name__ == '__main__':
     # Test the parser
     html_path = 'temp-repos/FluSight-forecast-hub/reports/Flu_Hospitalizations_Forecasts_WIS_11 February 2026.html'
 
-    print("Parsing WIS report...")
-    df = parse_wis_report(html_path)
+    print("Testing different evaluation periods...")
+    print("=" * 80)
 
-    print(f"\n✓ Successfully parsed {len(df)} models")
-    print(f"\nColumns: {df.columns.tolist()}")
-    print(f"\nDataFrame shape: {df.shape}")
+    for period in ['last_2', 'last_4', 'last_8']:
+        print(f"\n{period.upper()}:")
+        df, description = parse_wis_report(html_path, evaluation_period=period)
+        print(f"  Period: {description}")
+        print(f"  Models: {len(df)}")
+
+        # Find UMass-flusion
+        if 'UMass-flusion' in df.index:
+            umass = df.loc['UMass-flusion']
+            print(f"  UMass-flusion: Rank {umass['rank']}/{len(df)}, WIS: {umass['absolute_wis']}")
 
     print("\n" + "=" * 80)
-    print("Top 10 models by rank:")
-    print(df.sort_values('rank').head(10)[['rank', 'absolute_wis', 'coverage_50pct', 'coverage_95pct']])
-
-    print("\n" + "=" * 80)
-    print("UMass models:")
-    umass_models = df[df.index.str.contains('UMass', case=False)]
-    print(umass_models[['rank', 'absolute_wis', 'coverage_50pct', 'coverage_95pct']])
-
-    # Save to CSV
-    output_path = 'extracted_wis_metrics.csv'
-    df.to_csv(output_path)
-    print(f"\n✓ Saved all metrics to {output_path}")
+    print("✓ Testing complete")

@@ -11,7 +11,7 @@ except ImportError:
     from html_parser import parse_wis_report
 
 
-def extract_model_metrics(model_name, reports_dir=None, html_path=None):
+def extract_model_metrics(model_name, reports_dir=None, html_path=None, evaluation_period='last_4'):
     """
     Extract metrics for a specific model from evaluation reports.
 
@@ -23,6 +23,8 @@ def extract_model_metrics(model_name, reports_dir=None, html_path=None):
         Directory containing HTML reports
     html_path : str or Path, optional
         Path to specific HTML report
+    evaluation_period : str, optional
+        Which evaluation period: 'last_2', 'last_4' (default), 'last_8', or 'season'
 
     Returns
     -------
@@ -44,7 +46,7 @@ def extract_model_metrics(model_name, reports_dir=None, html_path=None):
         html_path = wis_reports[0]  # Use most recent
 
     # Parse the report
-    df = parse_wis_report(html_path)
+    df, period_description = parse_wis_report(html_path, evaluation_period=evaluation_period)
 
     # Find the model
     if model_name not in df.index:
@@ -54,8 +56,9 @@ def extract_model_metrics(model_name, reports_dir=None, html_path=None):
     total_models = len(df)
 
     # Calculate rankings for different metrics
-    # (Lower WIS is better, higher coverage is better)
+    # (Lower WIS/rWIS/MAE is better, higher coverage is better)
     df['wis_rank'] = df['absolute_wis'].rank(method='min').astype(int)
+    df['rwis_rank'] = df['relative_wis'].rank(method='min').astype(int)
     df['mae_rank'] = df['mae'].rank(method='min').astype(int)
     df['coverage_50_rank'] = df['coverage_50pct'].rank(method='min', ascending=False).astype(int)
     df['coverage_95_rank'] = df['coverage_95pct'].rank(method='min', ascending=False).astype(int)
@@ -63,6 +66,7 @@ def extract_model_metrics(model_name, reports_dir=None, html_path=None):
     # Extract model's rankings
     rankings = {
         'WIS': df.loc[model_name, 'wis_rank'],
+        'Relative WIS': df.loc[model_name, 'rwis_rank'],
         'MAE': df.loc[model_name, 'mae_rank'],
         '50% Coverage': df.loc[model_name, 'coverage_50_rank'],
         '95% Coverage': df.loc[model_name, 'coverage_95_rank']
@@ -71,12 +75,18 @@ def extract_model_metrics(model_name, reports_dir=None, html_path=None):
     # Structure for model card
     metrics_data = {
         'model_name': model_name,
+        'evaluation_period': period_description,
         'overall_rank': int(model_data['rank']),
         'total_models': total_models,
         'metrics': {
             'WIS': {
                 'value': f"{model_data['absolute_wis']:.2f}",
                 'rank': rankings['WIS'],
+                'total_models': total_models
+            },
+            'Relative WIS': {
+                'value': f"{model_data['relative_wis']:.3f}",
+                'rank': rankings['Relative WIS'],
                 'total_models': total_models
             },
             'MAE': {
@@ -97,6 +107,7 @@ def extract_model_metrics(model_name, reports_dir=None, html_path=None):
         },
         'rankings_for_spider': {
             'WIS': {'rank': rankings['WIS'], 'total_models': total_models},
+            'Relative WIS': {'rank': rankings['Relative WIS'], 'total_models': total_models},
             'MAE': {'rank': rankings['MAE'], 'total_models': total_models},
             '50% Coverage': {'rank': rankings['50% Coverage'], 'total_models': total_models},
             '95% Coverage': {'rank': rankings['95% Coverage'], 'total_models': total_models}
@@ -106,9 +117,16 @@ def extract_model_metrics(model_name, reports_dir=None, html_path=None):
     return metrics_data
 
 
-def get_model_rankings(html_path=None):
+def get_model_rankings(html_path=None, evaluation_period='last_4'):
     """
     Get rankings for all models.
+
+    Parameters
+    ----------
+    html_path : str or Path, optional
+        Path to HTML report
+    evaluation_period : str, optional
+        Which evaluation period: 'last_2', 'last_4' (default), 'last_8', or 'season'
 
     Returns
     -------
@@ -123,7 +141,7 @@ def get_model_rankings(html_path=None):
             raise FileNotFoundError(f"No WIS reports found")
         html_path = wis_reports[0]
 
-    df = parse_wis_report(html_path)
+    df, _ = parse_wis_report(html_path, evaluation_period=evaluation_period)
 
     # Calculate rankings
     df['wis_rank'] = df['absolute_wis'].rank(method='min').astype(int)
@@ -135,21 +153,18 @@ def get_model_rankings(html_path=None):
 
 
 if __name__ == '__main__':
-    # Test extraction for UMass-flusion
-    print("Extracting metrics for UMass-flusion...")
+    # Test extraction for UMass-flusion across different periods
+    print("Testing UMass-flusion metrics across evaluation periods...")
+    print("=" * 80)
 
-    metrics = extract_model_metrics('UMass-flusion')
+    for period in ['last_2', 'last_4', 'last_8']:
+        print(f"\n{period.upper()}:")
+        metrics = extract_model_metrics('UMass-flusion', evaluation_period=period)
+
+        print(f"  Period: {metrics['evaluation_period']}")
+        print(f"  Overall Rank: {metrics['overall_rank']} / {metrics['total_models']}")
+        print(f"  WIS: {metrics['metrics']['WIS']['value']} (Rank {metrics['metrics']['WIS']['rank']})")
+        print(f"  95% Coverage: {metrics['metrics']['95% Coverage']['value']} (Rank {metrics['metrics']['95% Coverage']['rank']})")
 
     print("\n" + "=" * 80)
-    print("Extracted Metrics:")
-    print(f"  Model: {metrics['model_name']}")
-    print(f"  Overall Rank: {metrics['overall_rank']} / {metrics['total_models']}")
-    print("\nDetailed Metrics:")
-    for metric_name, metric_info in metrics['metrics'].items():
-        print(f"  {metric_name:20s} Value: {metric_info['value']:10s} Rank: {metric_info['rank']:2d} / {metric_info['total_models']}")
-
-    print("\nRankings for Spider Plot:")
-    for metric_name, ranking in metrics['rankings_for_spider'].items():
-        print(f"  {metric_name:20s} Rank: {ranking['rank']:2d} / {ranking['total_models']}")
-
-    print("\n✓ Metrics extraction successful!")
+    print("✓ Metrics extraction successful!")

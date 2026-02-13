@@ -14,7 +14,7 @@ from src.spider_plot import generate_spider_plot
 from src.model_card_generator import generate_model_card_html
 
 
-def generate_real_model_card(model_name, html_report_path, output_dir='cards'):
+def generate_real_model_card(model_name, html_report_path, output_dir='cards', evaluation_period='season'):
     """
     Generate a model card with real evaluation metrics.
 
@@ -26,6 +26,8 @@ def generate_real_model_card(model_name, html_report_path, output_dir='cards'):
         Path to the WIS evaluation HTML report
     output_dir : str
         Output directory for generated cards
+    evaluation_period : str, optional
+        Which evaluation period: 'last_2', 'last_4', 'last_8', or 'season' (default)
 
     Returns
     -------
@@ -34,11 +36,12 @@ def generate_real_model_card(model_name, html_report_path, output_dir='cards'):
     """
 
     print(f"Generating model card for {model_name} with real metrics...")
+    print(f"Evaluation period: {evaluation_period}")
     print("=" * 80)
 
     # Extract real metrics
     print("\n1. Extracting evaluation metrics from HTML report...")
-    metrics = extract_model_metrics(model_name, html_path=html_report_path)
+    metrics = extract_model_metrics(model_name, html_path=html_report_path, evaluation_period=evaluation_period)
 
     print(f"   ✓ Overall Rank: {metrics['overall_rank']} / {metrics['total_models']}")
     print(f"   ✓ WIS: {metrics['metrics']['WIS']['value']} (Rank {metrics['metrics']['WIS']['rank']})")
@@ -54,6 +57,7 @@ def generate_real_model_card(model_name, html_report_path, output_dir='cards'):
 
     spider_metrics = {
         'WIS': metrics['rankings_for_spider']['WIS'],
+        'Relative\nWIS': metrics['rankings_for_spider']['Relative WIS'],
         'MAE': metrics['rankings_for_spider']['MAE'],
         '50%\nCoverage': metrics['rankings_for_spider']['50% Coverage'],
         '95%\nCoverage': metrics['rankings_for_spider']['95% Coverage']
@@ -73,7 +77,8 @@ def generate_real_model_card(model_name, html_report_path, output_dir='cards'):
         'model_name': model_name,
         'team_name': model_metadata.get('team_name', 'UMass-Amherst'),
         'version': model_metadata.get('version', '1.1'),
-        'season': '2024-2025',
+        'season': '2025-2026',
+        'evaluation_period': metrics['evaluation_period'],  # E.g., "Last 4 Forecasts (EW2 - EW5)"
         'reference_date': 'Through 2026-02-11',  # From report date
         'last_updated': '2026-02-11',
         'model_type': model_metadata.get('model_type', 'Ensemble (Statistical + ML)'),
