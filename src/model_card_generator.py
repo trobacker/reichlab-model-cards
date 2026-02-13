@@ -40,6 +40,7 @@ def generate_model_card_html(model_data, spider_plot_path, output_path):
     team_name = model_data.get('team_name', 'Unknown Team')
     version = model_data.get('version', '1.0')
     season = model_data.get('season', '2024-2025')
+    evaluation_period = model_data.get('evaluation_period', 'N/A')
     reference_date = model_data.get('reference_date', 'N/A')
     last_updated = model_data.get('last_updated', datetime.now().strftime('%Y-%m-%d'))
 
@@ -310,6 +311,10 @@ def generate_model_card_html(model_data, spider_plot_path, output_path):
                 <div class="quick-stat">
                     <span class="label">Overall Rank</span>
                     <span class="value">{overall_rank} / {total_models}</span>
+                </div>
+                <div class="quick-stat">
+                    <span class="label">Evaluation Period</span>
+                    <span class="value" style="font-size: 9.5pt;">{evaluation_period}</span>
                 </div>
                 <div class="quick-stat">
                     <span class="label">Model Type</span>

@@ -34,25 +34,39 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 uv pip install -r requirements.txt
 ```
 
-### Generate Sample Model Card
+### Generate Model Cards
 
+**With placeholder data (for testing/demo):**
 ```bash
-# Generate a prototype card with mock data
 python src/generate_card.py --sample
-
-# Open the generated card in your browser
 open cards/UMass-flusion-2025-01-18.html
 ```
 
-The model card can be printed to PDF directly from your browser (File → Print → Save as PDF).
+**With real evaluation metrics from FluSight hub:**
+```bash
+python src/generate_card.py --model UMass-flusion --real-data
+open cards/UMass-flusion-real-metrics-2026-02-11.html
+```
+
+**With custom evaluation report:**
+```bash
+python src/generate_card.py --model ModelName --report path/to/report.html
+```
+
+The model cards can be printed to PDF directly from your browser (File → Print → Save as PDF).
 
 ## Project Structure
 
 ```
 ├── src/                          # Development code
+│   ├── evaluation/              # Evaluation metrics extraction
+│   │   ├── html_parser.py       # Parse FluSight HTML reports
+│   │   ├── metrics_extractor.py # Extract model-specific metrics
+│   │   └── README.md            # Evaluation module documentation
 │   ├── spider_plot.py           # Spider/radar plot generation
 │   ├── model_card_generator.py  # HTML model card generator
-│   └── generate_card.py         # CLI interface
+│   ├── generate_card.py         # Main CLI interface
+│   └── generate_real_card.py    # Real data card generation
 ├── cards/                        # Generated model cards (HTML + images)
 ├── .claude/                      # Project context documentation
 ├── CONTEXT.md                    # Repository relationships & data sources
@@ -93,14 +107,23 @@ This is a **prototype system** with many directions to explore:
 - Should cards include recommended actions based on forecast patterns?
 - How do we balance simplicity with necessary context?
 
+## Recent Updates
+
+**✨ Real evaluation metrics integration (Feb 2026)**
+- Implemented HTML parsing to extract metrics from FluSight evaluation reports
+- Model cards now support real WIS scores, coverage metrics, and rankings
+- Spider plots display actual performance across multiple metrics
+- Example: UMass-flusion ranks 27/51 models with WIS: 53.66, 95% coverage: 80.1%
+
 ## Next Steps
 
 Immediate priorities:
 - Gather feedback from stakeholders (public health officials, researchers, modelers)
-- Integrate real evaluation data from FluSight hub
+- ✅ ~~Integrate real evaluation data from FluSight hub~~ (COMPLETED)
 - Iterate on public health messaging and accessibility
 - Explore alternative visualizations and layouts
 - Automate weekly card generation for operational use
+- Add horizon-specific metrics (0-week, 1-week, 2-week, 3-week ahead)
 
 Longer-term directions:
 - Comparative cards showing multiple models side-by-side
