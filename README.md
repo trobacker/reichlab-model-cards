@@ -71,12 +71,43 @@ Each model card includes:
 6. **Usage Guidance** - When to use with confidence vs caution
 7. **Recent Evolution** - Model changes and updates
 
+## Open Questions & Areas for Exploration
+
+This is a **prototype system** with many directions to explore:
+
+### Public Health Interpretation
+- How can we make technical metrics more accessible to non-technical audiences?
+- What language and presentation resonates with public health practitioners?
+- Should we create different card versions for technical vs public-facing audiences?
+- How do we communicate uncertainty and model limitations in actionable ways?
+
+### Content & Design
+- What metrics matter most for public health decision-making?
+- Are spider plots intuitive, or should we explore alternative visualizations?
+- What level of detail is appropriate without overwhelming readers?
+- How can we better show geographic performance variation?
+
+### Operational Use
+- How can cards help with model selection for ensembles?
+- What guidance do decision-makers need to know when NOT to trust a model?
+- Should cards include recommended actions based on forecast patterns?
+- How do we balance simplicity with necessary context?
+
 ## Next Steps
 
+Immediate priorities:
+- Gather feedback from stakeholders (public health officials, researchers, modelers)
 - Integrate real evaluation data from FluSight hub
-- Automate weekly card generation
-- Add time series forecast visualizations
-- Expand to additional models and ensembles
+- Iterate on public health messaging and accessibility
+- Explore alternative visualizations and layouts
+- Automate weekly card generation for operational use
+
+Longer-term directions:
+- Comparative cards showing multiple models side-by-side
+- Time series forecast vs actual visualizations
+- Interactive web dashboard for exploring cards
+- Ensemble component analysis cards
+- Public-facing simplified versions
 
 ## Documentation
 
